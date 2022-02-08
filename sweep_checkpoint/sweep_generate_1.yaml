@@ -1,0 +1,75 @@
+program: Medical_class_incremental_cosine_Deepinversion.py
+method: bayes
+metric:
+    goal: minimize
+    name: total loss
+parameters:
+    lr:
+        value: 0.01
+    batch_size_1: 
+        value: 40
+    directory:
+        value: sweep_phase1_training
+    ckp_prefix:
+        value: class_incremental_MR_LFAD_cosine_small
+    random_seed:
+        value: 1993
+    nb_cl_fg:
+        value: 2 
+    nb_cl:
+        value: 1 
+    nb_phases: 
+        value: 1 
+    num_classes: 
+        value: 14
+    epochs: 
+        value: 150
+    rs_ratio: 
+        value: 0.0
+    dist: 
+        value: 0.5 
+    K: 
+        value: 1
+    lw_mr: 
+        value: 1
+    bs: 
+        values: [20,40] 
+    setting_id: 
+        value: 2 
+    generation_lr: 
+        values: [0.05,0.25,0.005]
+    adi_scale: 
+        value: 0.0 
+    tv_l2: 
+        values: [0.001,0.01,0.1] 
+    r_feature: 
+        values: [0.2,0.02,0.002]
+    l2: 
+        values: [0.1,0.001,0.01]
+    cosine_normalization:
+        value: True
+    store_best_images:
+        value: True
+    small_model:
+        value: True
+    imprint_weights:
+        value: True
+    adapt_lamda:
+        value: True
+    less_forget:
+        value: True
+    mr_loss:
+        value: True
+    do_flip:
+        value: True
+    resume:
+        value: True
+    verifier:
+        value: True
+    add_sampler:
+        value: True
+early_terminate:
+    type: hyperband
+    s: 2
+    eta: 3
+    max_iter: 30    

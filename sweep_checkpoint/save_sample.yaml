@@ -1,0 +1,76 @@
+program: 1_Medical_class_incremental_cosine_Deepinversion.py
+method: grid
+metric:
+    goal: minimize
+    name: test loss
+parameters:
+    lr:
+        value: 0.001
+    batch_size_1: 
+        value: 40
+    directory:
+        value: sweep_phase1_training_save
+    ckp_prefix:
+        value: class_incremental_MR_LFAD_cosine_small
+    random_seed:
+        value: 1993
+    nb_cl_fg:
+        value: 14 
+    nb_cl:
+        value: 1 
+    nb_phases: 
+        value: 0 
+    num_classes: 
+        value: 14
+    epochs: 
+        value: 150
+    rs_ratio: 
+        value: 0.0
+    dist: 
+        value: 0.5 
+    K: 
+        value: 1
+    lw_mr: 
+        value: 1
+    bs: 
+        value: 40 
+    setting_id: 
+        value: 2 
+    generation_lr: 
+        value: 0.05
+    adi_scale: 
+        value: 0.0 
+    tv_l2: 
+        value: 0.001 
+    r_feature: 
+        value: 0.02 
+    tv_l2: 
+        value: 0.001 
+    l2: 
+        value: 0.1
+    cosine_normalization:
+        value: True
+    store_best_images:
+        value: True
+    small:
+        value: True
+    imprint_weights:
+        value: True
+    adapt_lamda:
+        value: True
+    less_forget:
+        value: True
+    mr_loss:
+        value: True
+    do_flip:
+        value: True
+    save_samples_dir:
+        value: ./saved_Sample_3_2
+    save_samples:
+        value: True
+early_terminate:
+    type: hyperband
+    s: 2
+    eta: 3
+    max_iter: 30    
+project: CVPR19_Incremental_Learning-cifar100-class-incremental    
