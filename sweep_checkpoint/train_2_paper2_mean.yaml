@@ -28,7 +28,7 @@ parameters:
         value: 150
     rs_ratio: 
         value: 0.5
-    dist: 
+    dist:
         value: 0.5 
     K: 
         value: 1
@@ -43,11 +43,11 @@ parameters:
     adi_scale: 
         value: 0.0 
     tv_l2: 
-        value: 0.01 
+        value: 0.001 
     r_feature: 
-        value: 0.002
+        value: 0.2
     l2: 
-        value: 0.01
+        value: 0.001
     cosine_normalization:
         value: True
     store_best_images:
@@ -66,18 +66,28 @@ parameters:
         value: True
     resume:
         value: True
-    add_sampler:
-        value: True
     sampler_type:
-        value: paper1
+        value: paper2
     validate:
         value: True
     mode:
-        value: paper_1
+        value: paper_2
     add_data:
         value: True
+    save_samples_dir:
+        value: ./saved_Sample_3_2
+    type_of_verifier:
+        value: VGG
+    use_mean_initialization:
+        value: true
+    beta_2:
+        value: 0.09
+    random_label:
+        value: true
     cuda_number:
-        value: 0
+        value: 1
+    generate_more:
+        value: true
 early_terminate:
     type: hyperband
     s: 2

@@ -2,7 +2,7 @@ program: 1_Medical_class_incremental_cosine_Deepinversion.py
 method: bayes
 metric:
     goal: maximize
-    name: Verifier Acc
+    name: Self Acc
 parameters:
     lr:
         value: 0.01
@@ -50,8 +50,6 @@ parameters:
         values: [0.1,0.001,0.01]
     cosine_normalization:
         value: True
-    store_best_images:
-        value: True
     small_model:
         value: True
     imprint_weights:
@@ -86,4 +84,6 @@ parameters:
         values: [0.9,0.09,0.009]
     random_label:
         value: true
+    cuda_number:
+        value: 1
 project: sweep_generate_2

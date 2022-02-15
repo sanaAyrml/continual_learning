@@ -1,10 +1,12 @@
 program: 1_Medical_class_incremental_cosine_Deepinversion.py
 method: grid
 metric:
-    goal: minimize
-    name: total loss
+    goal: maximize
+    name: Verifier Acc
 parameters:
     lr:
+        value: 0.01
+    lr_verifier:
         value: 0.01
     batch_size_1: 
         value: 40
@@ -21,13 +23,13 @@ parameters:
     nb_cl:
         value: 1 
     nb_phases: 
-        value: 2 
+        value: 1 
     num_classes: 
         value: 14
     epochs: 
         value: 150
     rs_ratio: 
-        value: 0.5
+        value: 0.0
     dist: 
         value: 0.5 
     K: 
@@ -35,17 +37,17 @@ parameters:
     lw_mr: 
         value: 1
     bs: 
-        value: 40 
+        value: 40
     setting_id: 
-        value: 2 
+        value: 1 
     generation_lr: 
-        value: 0.05
+        value: 0.25
     adi_scale: 
         value: 0.0 
     tv_l2: 
-        value: 0.01 
+        value: 0.01
     r_feature: 
-        value: 0.002
+        value: 0.2
     l2: 
         value: 0.01
     cosine_normalization:
@@ -66,21 +68,32 @@ parameters:
         value: True
     resume:
         value: True
+    verifier:
+        value: True
     add_sampler:
         value: True
+    save_samples_dir:
+        value: ./saved_Sample_3_2
     sampler_type:
-        value: paper1
-    validate:
-        value: True
+        value: paper2
     mode:
-        value: paper_1
-    add_data:
-        value: True
+        value: paper_2
+    add_data: 
+        value: true
+    type_of_verifier:
+        value: VGG
+    use_mean_initialization:
+        value: true
+    beta_2:
+        value: 0.09
+    random_label:
+        value: true
     cuda_number:
         value: 0
-early_terminate:
-    type: hyperband
-    s: 2
-    eta: 3
-    max_iter: 30    
+    generate_more:
+        value: true
+    nb_generation:
+        value: 21
+    store_best_images:
+        value: true
 project: CVPR19_Incremental_Learning-cifar100-class-incremental

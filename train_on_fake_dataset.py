@@ -61,6 +61,8 @@ from medical_deepinversion import DeepInversionClass
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from my_code.data_loader import get_heart_dataset
 
+from my_code.fake_dataset import fake_Heart
+
 import wandb
 
 def validate_one(input, target, model):
@@ -85,7 +87,7 @@ def validate_one(input, target, model):
     with torch.no_grad():
         output = model(input)
         prec1, prec5 = accuracy(output.data, target, topk=(1, 1))
-
+    
     print("Verifier accuracy: ", prec1.item())
     return prec1.item()
 
@@ -94,165 +96,163 @@ def validate_one(input, target, model):
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--directory', default='./medical_checkpoint/', type=str, \
-                    help='Checkpoint directory')
+    help='Checkpoint directory')
 
 parser.add_argument('--ckp_prefix', default='', type=str, \
-                    help='Checkpoint prefix')
+    help='Checkpoint prefix')
 parser.add_argument('--ckp_prefix_verifier', default='', type=str, \
-                    help='Checkpoint prefix verifier')
+    help='Checkpoint prefix verifier')
 parser.add_argument('--num_classes', default=14, type=int)
 parser.add_argument('--nb_cl_fg', default=2, type=int, \
-                    help='the number of classes in first group')
+    help='the number of classes in first group')
 parser.add_argument('--nb_cl', default=1, type=int, \
-                    help='Classes per group')
+    help='Classes per group')
 parser.add_argument('--nb_phases', default=2, type=int, \
-                    help='the number of phases')
+    help='the number of phases')
 parser.add_argument('--nb_protos', default=20, type=int, \
-                    help='Number of prototypes per class at the end')
+    help='Number of prototypes per class at the end')
 parser.add_argument('--nb_runs', default=1, type=int, \
-                    help='Number of runs (random ordering of classes at each run)')
+    help='Number of runs (random ordering of classes at each run)')
 
 parser.add_argument('--epochs', default=100, type=int, \
-                    help='Epochs')
+    help='Epochs')
 
 parser.add_argument('--T', default=2, type=float, \
-                    help='Temporature for distialltion')
+    help='Temporature for distialltion')
 parser.add_argument('--beta', default=0.25, type=float, \
-                    help='Beta for distialltion')
+    help='Beta for distialltion')
 parser.add_argument('--resume', default=False , type=bool, \
-                    help='resume from checkpoint')
-parser.add_argument('--fix_budget', default=False , type=bool, \
-                    help='fix budget')
+    help='resume from checkpoint')
+parser.add_argument('--fix_budget', default=False , type=bool,  \
+    help='fix budget')
 ########################################
-parser.add_argument('--mimic_score', default=False , type=bool, \
-                    help='To mimic scores for cosine embedding')
+parser.add_argument('--mimic_score', default=False , type=bool,  \
+    help='To mimic scores for cosine embedding')
 parser.add_argument('--lw_ms', default=1, type=float, \
-                    help='loss weight for mimicking score')
+    help='loss weight for mimicking score')
 ########################################
 #improved class incremental learning
 parser.add_argument('--rs_ratio', default=0, type=float, \
-                    help='The ratio for resample')
+    help='The ratio for resample')
 parser.add_argument('--imprint_weights', default=False , type=bool, \
-                    help='Imprint the weights for novel classes')
-parser.add_argument('--less_forget', default=False , type=bool, \
-                    help='Less forgetful')
+    help='Imprint the weights for novel classes')
+parser.add_argument('--less_forget', default=False , type=bool,  \
+    help='Less forgetful')
 parser.add_argument('--lamda', default=5, type=float, \
-                    help='Lamda for LF')
-parser.add_argument('--adapt_lamda', default=False , type=bool, \
-                    help='Adaptively change lamda')
-parser.add_argument('--mr_loss', default=False , type=bool, \
-                    help='Margin ranking loss v1')
-parser.add_argument('--amr_loss', default=False , type=bool, \
-                    help='Margin ranking loss v2')
+    help='Lamda for LF')
+parser.add_argument('--adapt_lamda', default=False , type=bool,  \
+    help='Adaptively change lamda')
+parser.add_argument('--mr_loss', default=False , type=bool,  \
+    help='Margin ranking loss v1')
+parser.add_argument('--amr_loss', default=False , type=bool,  \
+    help='Margin ranking loss v2')
 parser.add_argument('--dist', default=0.5, type=float, \
-                    help='Dist for MarginRankingLoss')
+    help='Dist for MarginRankingLoss')
 parser.add_argument('--K', default=1, type=int, \
-                    help='K for MarginRankingLoss')
+    help='K for MarginRankingLoss')
 parser.add_argument('--lw_mr', default=1, type=float, \
-                    help='loss weight for margin ranking loss')
-parser.add_argument('--lr', type=float, default=0.2,
+    help='loss weight for margin ranking loss')
+parser.add_argument('--lr', type=float, default=0.2, 
                     help='learning rate for optimization')
-parser.add_argument('--lr_verifier', type=float, default=0.2,
+parser.add_argument('--lr_verifier', type=float, default=0.2, 
                     help='learning rate for optimization verifier')
-parser.add_argument('--batch_size_1', type=int, default=64,
+parser.add_argument('--batch_size_1', type=int, default=64, 
                     help='batch size for training model')
 
 ########################################
 
 
-parser.add_argument('--epochs_generat', default=4000, type=int,
+parser.add_argument('--epochs_generat', default=4000, type=int, 
                     help='number of epochs')
-parser.add_argument('--setting_id', default=1, type=int,
+parser.add_argument('--setting_id', default=1, type=int, 
                     help='settings for optimization: 0 - multi resolution, 1 - 2k iterations, 2 - 20k iterations')
-parser.add_argument('--bs', default=64, type=int,
+parser.add_argument('--bs', default=64, type=int, 
                     help='batch size for generation')
-parser.add_argument('--jitter', default=30, type=int,
+parser.add_argument('--jitter', default=30, type=int, 
                     help='batch size')
-parser.add_argument('--adi_scale', type=float, default=0.0,
+parser.add_argument('--adi_scale', type=float, default=0.0, 
                     help='Coefficient for Adaptive Deep Inversion')
 
-parser.add_argument('--fp16', default=False , type=bool,
+parser.add_argument('--fp16', default=False , type=bool, 
                     help='use FP16 for optimization')
 
-parser.add_argument('--do_flip', default=False , type=bool,
+parser.add_argument('--do_flip', default=False , type=bool, 
                     help='apply flip during model inversion')
-parser.add_argument('--random_label', default=False , type=bool,
+parser.add_argument('--random_label', default=False , type=bool,  
                     help='generate random label for optimization')
-parser.add_argument('--r_feature', type=float, default=0.05,
+parser.add_argument('--r_feature', type=float, default=0.05, 
                     help='coefficient for feature distribution regularization')
-parser.add_argument('--first_bn_multiplier', type=float, default=10.,
+parser.add_argument('--first_bn_multiplier', type=float, default=10., 
                     help='additional multiplier on first bn layer of R_feature')
-parser.add_argument('--tv_l1', type=float, default=0.0,
+parser.add_argument('--tv_l1', type=float, default=0.0, 
                     help='coefficient for total variation L1 loss')
-parser.add_argument('--tv_l2', type=float, default=0.0001,
+parser.add_argument('--tv_l2', type=float, default=0.0001, 
                     help='coefficient for total variation L2 loss')
-parser.add_argument('--l2', type=float, default=0.00001,
+parser.add_argument('--l2', type=float, default=0.00001, 
                     help='l2 loss on the image')
-parser.add_argument('--main_loss_multiplier', type=float, default=1.0,
+parser.add_argument('--main_loss_multiplier', type=float, default=1.0, 
                     help='coefficient for the main loss in optimization')
-parser.add_argument('--store_best_images', default=False , type=bool,
+parser.add_argument('--store_best_images', default=False , type=bool,  
                     help='save best images as separate files')
-parser.add_argument('--generation_lr', type=float, default=0.2,
-                    help='learning rate for optimization')
+parser.add_argument('--generation_lr', type=float, default=0.2, 
+                    help='learning rate for optimization')    
 
 
 
-parser.add_argument('--verifier', default=False , type=bool,
+parser.add_argument('--verifier', default=False , type=bool, 
                     help='evaluate batch with another model')
 #####################################################################################################
 parser.add_argument('--add_sampler',  default=False , type=bool,
                     help='enable deep inversion part')
 
-parser.add_argument('--add_data',  default=False , type=bool,
-                    help='enable deep to add generated data')
+parser.add_argument('--add_data',  default=False , type=bool, 
+                     help='enable deep to add generated data')
 
 parser.add_argument('--input_dim', type=int, default=1, help='input dimension')
 
-parser.add_argument('--cosine_normalization', default=False , type=bool,
+parser.add_argument('--cosine_normalization', default=False , type=bool, 
                     help='change laste layer of networks')
-parser.add_argument('--save_samples', default=False , type=bool,
+parser.add_argument('--save_samples', default=False , type=bool, 
                     help='save some samples')
 parser.add_argument('--save_samples_dir', type=str, default='./saved_Sample',
                     help='place to save samples')
-parser.add_argument('--small_model', default=False , type=bool,
+parser.add_argument('--small_model', default=False , type=bool, 
                     help='use model with 3 layers')
-parser.add_argument('--big_model', default=False , type=bool,
+parser.add_argument('--big_model', default=False , type=bool, 
                     help='use model with resnet 50 layers')
 
-parser.add_argument('--validate', default=False , type=bool,
+parser.add_argument('--validate', default=False , type=bool, 
                     help='run the validate part of network')
 
-parser.add_argument('--sampler_type', default='paper1' , type=str,
+parser.add_argument('--sampler_type', default='paper1' , type=str, 
                     help='use which sampler strategy')
 
-parser.add_argument('--mode', default='paper1' , type=str,
+parser.add_argument('--mode', default='paper1' , type=str, 
                     help='use which sampler strategy')
 
-parser.add_argument('--use_mean_initialization', default=False , type=bool,
+parser.add_argument('--use_mean_initialization', default=False , type=bool, 
                     help='use mean of classes to initialize vectors')
 
-parser.add_argument('--type_of_verifier', default='Resnet' , type=str,
+parser.add_argument('--type_of_verifier', default='Resnet' , type=str, 
                     help='model type of verifier')
 
-parser.add_argument('--beta_2', default=0.9 , type=float,
+parser.add_argument('--beta_2', default=0.9 , type=float, 
                     help='beta 2 for adam optimizer in generating')
 
-parser.add_argument('--cuda_number', default=0.9 , type=str,
+parser.add_argument('--cuda_number', default=0.9 , type=str, 
                     help='which cuda use to train')
 
-parser.add_argument('--generate_more', default=False , type=bool,
+parser.add_argument('--generate_more', default=False , type=bool, 
                     help='generate more batches of data')
 
-parser.add_argument('--Plax', default=False , type=bool,
+parser.add_argument('--Plax', default=False , type=bool, 
                     help='new classes to train')
 
-parser.add_argument('--nb_generation', default=0 , type=int,
+parser.add_argument('--nb_generation', default=0 , type=int, 
                     help='number of batch to train')
 
-parser.add_argument('--alpha_3', default=1 , type=int,
+parser.add_argument('--alpha_3', default=1 , type=int, 
                     help='number of batch to train')
-
-
 
 
 
@@ -261,7 +261,7 @@ parser.add_argument('--alpha_3', default=1 , type=int,
 
 
 parser.add_argument('--random_seed', default=1993, type=int, \
-                    help='random seed')
+    help='random seed')
 
 args = parser.parse_args()
 if args.cosine_normalization:
@@ -274,7 +274,7 @@ else:
         from Medical_predictor_model_3_layers import ResNet,ResidualBlock
     else:
         from Medical_predictor_model import ResNet,ResidualBlock
-
+        
 os.environ["WANDB_API_KEY"] = 'f87c7a64e4a4c89c4f1afc42620ac211ceb0f926'
 
 wandb.init(project="continual_learning", entity="sanaayr",config=args)
@@ -287,7 +287,7 @@ test_batch_size        = args.batch_size_1            # Batch size for test
 eval_batch_size        = args.batch_size_1            # Batch size for eval
 base_lr                = args.lr            # Initial learning rate
 lr_factor              = 0.3            # Learning rate decrease factor
-lr_patience            = 5
+lr_patience            = 5 
 lr_threshold           = 0.0001
 custom_weight_decay    = 5e-4           # Weight Decay
 custom_momentum        = 0.9            # Momentum
@@ -297,11 +297,11 @@ if not os.path.exists('sweep_checkpoint/'+args.directory):
     os.makedirs('sweep_checkpoint/'+args.directory)
 
 main_ckp_prefix       = '{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.ckp_prefix,
-                                                                        args.nb_cl_fg,
-                                                                        args.nb_cl,
-                                                                        args.lr,
-                                                                        args.batch_size_1)
-
+                                                                      args.nb_cl_fg,
+                                                                      args.nb_cl,
+                                                                      args.lr, 
+                                                                      args.batch_size_1)
+    
 np.random.seed(args.random_seed)        # Fix the random seed
 print(args)
 if args.Plax:
@@ -340,11 +340,11 @@ for iteration_total in range(args.nb_runs):
         order = np.arange(args.num_classes)
         # np.random.shuffle(order)
         utils_pytorch.savepickle(order, order_name)
-
+        
     order_list = list(order)
     print("order_list: ",order_list)
 
-    #     # Initialization of the variables for this run
+#     # Initialization of the variables for this run
     dictionary_size = 2000
     X_valid_cumuls    = []
     X_protoset_cumuls = []
@@ -388,7 +388,7 @@ for iteration_total in range(args.nb_runs):
                 #       trainset.__getitem__(i[j])[0].view(1,1,224,224).min(),
                 #       torch.std(trainset.__getitem__(i[j])[0].view(1,1,224,224), unbiased=False),
                 #       torch.mean(trainset.__getitem__(i[j])[0].view(1,1,224,224)))
-
+                
             vutils.save_image(integrated_image/len(i),
                               args.save_samples_dir+'/label_'+str(trainset.__getitem__(i[j])[1])+"_"+"integrated"+"_"+view_classes[trainset.__getitem__(i[j])[1]]+'.png',
                               normalize=False, scale_each=True, nrow=int(1))
@@ -400,40 +400,40 @@ for iteration_total in range(args.nb_runs):
         if iteration == start_iter:
             if args.mode == 'vanilla':
                 main_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode,args.ckp_prefix,
-                                                                                            args.nb_cl_fg,
-                                                                                            args.nb_cl,
-                                                                                            args.lr,
-                                                                                            args.batch_size_1)
+                                                                      args.nb_cl_fg,
+                                                                      args.nb_cl,
+                                                                      args.lr, 
+                                                                      args.batch_size_1)
                 verifier_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode,args.ckp_prefix_verifier,
-                                                                                                args.nb_cl_fg,
-                                                                                                args.nb_cl,
-                                                                                                args.lr_verifier,
-                                                                                                args.batch_size_1)
+                                                                      args.nb_cl_fg,
+                                                                      args.nb_cl,
+                                                                      args.lr_verifier, 
+                                                                      args.batch_size_1)
             else:
                 main_ckp_prefix        = '{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.ckp_prefix,
-                                                                                         args.nb_cl_fg,
-                                                                                         args.nb_cl,
-                                                                                         args.lr,
-                                                                                         args.batch_size_1)
+                                                                          args.nb_cl_fg,
+                                                                          args.nb_cl,
+                                                                          args.lr, 
+                                                                          args.batch_size_1)
                 verifier_ckp_prefix        = '{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,
                                                                                              args.ckp_prefix_verifier,
                                                                                              args.nb_cl_fg,
                                                                                              args.nb_cl,
-                                                                                             args.lr_verifier,
+                                                                                             args.lr_verifier, 
                                                                                              args.batch_size_1)
         else:
-            main_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode+"_optimized",args.ckp_prefix,
-                                                                                        args.nb_cl_fg,
-                                                                                        args.nb_cl,
-                                                                                        args.lr,
-                                                                                        args.batch_size_1)
-            verifier_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode+"_optimized",args.ckp_prefix_verifier,
-                                                                                            args.nb_cl_fg,
-                                                                                            args.nb_cl,
-                                                                                            args.lr_verifier,
-                                                                                            args.batch_size_1)
-
-
+            main_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode,args.ckp_prefix,
+                                                                      args.nb_cl_fg,
+                                                                      args.nb_cl,
+                                                                      args.lr, 
+                                                                      args.batch_size_1)
+            verifier_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode,args.ckp_prefix_verifier,
+                                                                      args.nb_cl_fg,
+                                                                      args.nb_cl,
+                                                                      args.lr_verifier, 
+                                                                      args.batch_size_1)
+            
+        
         wandb.run.name = '{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
         wandb.run.save()
 
@@ -448,7 +448,7 @@ for iteration_total in range(args.nb_runs):
                     verifier_model = torch.hub.load('pytorch/vision:v0.10.0', 'vgg11', pretrained=True).to(device)
                     print(verifier_model)
                     verifier_model.features[0] = nn.Conv2d(1, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-                    verifier_model.classifier[6] = nn.Linear(in_features=4096, out_features=iteration*args.nb_cl+1, bias=True)
+                    verifier_model.classifier[6] = nn.Linear(in_features=4096, out_features=iteration*args.nb_cl+1, bias=True) 
                     print(verifier_model)
                     verifier_model = verifier_model.to(device)
             else:
@@ -460,10 +460,10 @@ for iteration_total in range(args.nb_runs):
                     verifier_model = torch.hub.load('pytorch/vision:v0.10.0', 'vgg11', pretrained=True).to(device)
                     print(verifier_model)
                     verifier_model.features[0] = nn.Conv2d(1, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-                    verifier_model.classifier[6] = nn.Linear(in_features=4096, out_features=iteration*args.nb_cl+1, bias=True)
+                    verifier_model.classifier[6] = nn.Linear(in_features=4096, out_features=iteration*args.nb_cl+1, bias=True) 
                     print(verifier_model)
                     verifier_model = verifier_model.to(device)
-
+        
         #init model
         if iteration == start_iter:
             ############################################################
@@ -480,42 +480,10 @@ for iteration_total in range(args.nb_runs):
             out_features = tg_model.fc.out_features
             print("in_features:", in_features, "out_features:", out_features)
             ref_model = None
-        elif iteration == start_iter+1:
-            ############################################################
-            last_iter = iteration
-            ############################################################
-            #increment classes
-            ref_model = copy.deepcopy(tg_model)
-            in_features = tg_model.fc.in_features
-            out_features = tg_model.fc.out_features
-            print("in_features:", in_features, "out_features:", out_features)
-            new_fc = modified_linear.SplitCosineLinear(in_features, out_features, args.nb_cl)
-            new_fc.fc1.weight.data = tg_model.fc.weight.data
-            new_fc.sigma.data = tg_model.fc.sigma.data
-            tg_model.fc = new_fc
-            lamda_mult = out_features*1.0 / args.nb_cl
-        else:
-            ############################################################
-            last_iter = iteration
-            ############################################################
-            ref_model = copy.deepcopy(tg_model)
-            in_features = tg_model.fc.in_features
-            out_features1 = tg_model.fc.fc1.out_features
-            out_features2 = tg_model.fc.fc2.out_features
-            print("in_features:", in_features, "out_features1:", \
-                  out_features1, "out_features2:", out_features2)
-            new_fc = modified_linear.SplitCosineLinear(in_features, out_features1+out_features2, args.nb_cl)
-            new_fc.fc1.weight.data[:out_features1] = tg_model.fc.fc1.weight.data
-            new_fc.fc1.weight.data[out_features1:] = tg_model.fc.fc2.weight.data
-            new_fc.sigma.data = tg_model.fc.sigma.data
-            tg_model.fc = new_fc
-            lamda_mult = (out_features1+out_features2)*1.0 / (args.nb_cl)
 
-        if iteration > start_iter and args.less_forget and args.adapt_lamda:
-            #cur_lamda = lamda_base * sqrt(num_old_classes/num_new_classes)
-            cur_lamda = args.lamda * math.sqrt(lamda_mult)
-        else:
-            cur_lamda = args.lamda
+
+
+        cur_lamda = args.lamda
         if iteration > start_iter and args.less_forget:
             print("###############################")
             print("Lamda for less forget is set to ", cur_lamda)
@@ -530,16 +498,18 @@ for iteration_total in range(args.nb_runs):
         X_train          = X_train_total[indices_train_10]
         X_valid          = X_valid_total[indices_test_10]
         print("len data to be trained ==> train:", len(X_train),"  validation:",len(X_valid))
-        X_valid_cumuls.append(X_valid)
-        X_train_cumuls.append(X_train)
+        if iteration == start_iter:
+            X_valid_cumuls.append(X_valid)
+            X_train_cumuls.append(X_train)
         X_valid_cumul    = np.concatenate(X_valid_cumuls)
         X_train_cumul    = np.concatenate(X_train_cumuls)
         print("len total data seen till this phase ==> train:", len(X_train_cumul),"  validation:",len(X_valid_cumul))
 
         Y_train          = Y_train_total[indices_train_10]
         Y_valid          = Y_valid_total[indices_test_10]
-        Y_valid_cumuls.append(Y_valid)
-        Y_train_cumuls.append(Y_train)
+        if iteration == start_iter:
+            Y_valid_cumuls.append(Y_valid)
+            Y_train_cumuls.append(Y_train)
         Y_valid_cumul    = np.concatenate(Y_valid_cumuls)
         Y_train_cumul    = np.concatenate(Y_train_cumuls)
 
@@ -548,29 +518,9 @@ for iteration_total in range(args.nb_runs):
             X_valid_ori = X_valid
             Y_valid_ori = Y_valid
         else:
-            if args.add_data:
-                print("Add protoset data with size: ",len(Y_protoset_cumuls))
-                X_protoset = np.concatenate(X_protoset_cumuls)
-                # print(X_protoset.shape)
-                Y_protoset = np.concatenate(Y_protoset_cumuls)
-                # X_protoset = X_protoset_cumuls
-                # Y_protoset = Y_protoset_cumuls
-                if args.rs_ratio > 0:
-                    # 1/rs_ratio = (len(X_train)+len(X_protoset)*scale_factor)/(len(X_protoset)*scale_factor)
-                    scale_factor = (len(X_train) * args.rs_ratio) / (len(X_protoset) * (1 - args.rs_ratio))
-                    rs_sample_weights = np.concatenate((np.ones(len(X_train)), np.ones(len(X_protoset))*scale_factor))
-                    #number of samples per epoch, undersample on the new classes
-                    #rs_num_samples = len(X_train) + len(X_protoset)
-                    rs_num_samples = int(len(X_train) / (1 - args.rs_ratio))
-                    print("X_train:{}, X_protoset:{}, rs_num_samples:{}".format(len(X_train), len(X_protoset), rs_num_samples))
-
-                if args.mode == 'paper_1':
-                    X_train    = np.concatenate((X_train,X_protoset))
-                    Y_train    = np.concatenate((Y_train,Y_protoset))
-                elif args.mode == 'paper_2':
-                    trainset.proto_sets_x = X_protoset
-                    trainset.proto_sets_y = Y_protoset
-                    trainset.comput_mean_and_std()
+            pass
+            ##TODO
+            
 
         # Launch the training loop
         print('Batch of classes number {0} arrives ...'.format(iteration+1))
@@ -578,59 +528,17 @@ for iteration_total in range(args.nb_runs):
         map_Y_train_cumul = np.array([order_list.index(i) for i in Y_train_cumul])
         map_Y_valid_cumul = np.array([order_list.index(i) for i in Y_valid_cumul])
 
-        #imprint weights
-        if iteration > start_iter and args.imprint_weights:
-            #input: tg_model, X_train, map_Y_train
-            #class_start = iteration*nb_cl class_end = (iteration+1)*nb_cl
-            print("Imprint weights")
-            #########################################
-            #compute the average norm of old embdding
-            old_embedding_norm = tg_model.fc.fc1.weight.data.norm(dim=1, keepdim=True)
-            average_old_embedding_norm = torch.mean(old_embedding_norm, dim=0).to('cpu').type(torch.DoubleTensor)
-            #########################################
-            tg_feature_model = nn.Sequential(*list(tg_model.children())[:-1])
-            num_features = tg_model.fc.in_features
-            novel_embedding = torch.zeros((args.nb_cl, num_features))
-            for cls_idx in range(iteration*args.nb_cl, (iteration+1)*args.nb_cl):
-                cls_indices = np.array([i == cls_idx  for i in map_Y_train])
-                print(len(cls_indices))
-                cls_indices_1 = cls_indices[np.where(cls_indices<len(X_train))]
-                print(len(cls_indices_1),len(X_train))
-                assert(len(np.where(cls_indices==1)[0])<=dictionary_size)
-                evalset.data = X_train[cls_indices[0:len(X_train)]]
-                evalset.targets = np.zeros(evalset.data.shape[0]) #zero labels
-                evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
-                                                         shuffle=False, num_workers=2)
-                num_samples = evalset.data.shape[0]
-                cls_features = compute_features(tg_feature_model, evalloader, num_samples, num_features,device=device)
-                #cls_features = cls_features.T
-                #cls_features = cls_features / np.linalg.norm(cls_features,axis=0)
-                #cls_embedding = np.mean(cls_features, axis=1)
-                norm_features = F.normalize(torch.from_numpy(cls_features), p=2, dim=1)
-                cls_embedding = torch.mean(norm_features, dim=0)
-                #novel_embedding[cls_idx-iteration*args.nb_cl] = cls_embedding
-                novel_embedding[cls_idx-iteration*args.nb_cl] = F.normalize(cls_embedding, p=2, dim=0) * average_old_embedding_norm
-                # print(novel_embedding.shape)
-            tg_model.to(device)
-            #torch.save(tg_model, "tg_model_before_imprint_weights.pth")
-            tg_model.fc.fc2.weight.data = novel_embedding.to(device)
-            #torch.save(tg_model, "tg_model_after_imprint_weights.pth")
-
-        ############################################################
-
-
-
+        
+        
+        
         print("making original dataloader")
-        trainset.data = X_train
-        trainset.targets = map_Y_train
-        if iteration > start_iter and args.rs_ratio > 0 and scale_factor > 1:
-            print("Weights from sampling:", rs_sample_weights)
-            index1 = np.where(rs_sample_weights>1)[0]
-            # index2 = np.where(map_Y_train<iteration*args.nb_cl)[0]
-            # assert((index1==index2).all())
-            train_sampler = torch.utils.data.sampler.WeightedRandomSampler(rs_sample_weights, rs_num_samples)
-            trainloader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size, \
-                                                      shuffle=False, sampler=train_sampler, num_workers=2)
+        if iteration == start_iter:
+            trainset.data = X_train
+            trainset.targets = map_Y_train
+        if iteration > start_iter:
+            
+            trainloader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size,
+                shuffle=True, num_workers=2)           
         else:
             if args.Plax:
                 sampler_list = []
@@ -638,21 +546,21 @@ for iteration_total in range(args.nb_runs):
                     sampler_list.append(trainset.view_label_weights[yi])
                 train_sampler = torch.utils.data.sampler.WeightedRandomSampler(sampler_list, len(sampler_list))
                 trainloader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size,
-                                                          shuffle=False, num_workers=2,sampler=train_sampler)
+                                shuffle=False, num_workers=2,sampler=train_sampler)
             trainloader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size,
-                                                      shuffle=True, num_workers=2)
-
+                shuffle=True, num_workers=2)
+            
         testset.data = X_valid_cumul
         testset.targets = map_Y_valid_cumul
         testloader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
-                                                 shuffle=False, num_workers=2)
-
+            shuffle=False, num_workers=2)
+        
         print('Max and Min of train labels: {}, {}'.format(min(map_Y_train), max(map_Y_train)))
         print('Max and Min of valid labels: {}, {}'.format(min(map_Y_valid_cumul), max(map_Y_valid_cumul)))
-
+                
         ##############################################################
-
-
+        
+                    
         ckp_name = './sweep_checkpoint/{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
         print('check point address of original model', ckp_name)
 
@@ -662,33 +570,24 @@ for iteration_total in range(args.nb_runs):
             tg_model.load_state_dict(torch.load(ckp_name)['model_state_dict'])
             model_loaded = True
             print("###############################")
-
+            
         else:
             ###############################
-            if iteration > start_iter and args.less_forget:
-                #fix the embedding of old classes
-                ignored_params = list(map(id, tg_model.fc.fc1.parameters()))
-                base_params = filter(lambda p: id(p) not in ignored_params, \
-                                     tg_model.parameters())
-                tg_params =[{'params': base_params, 'lr': base_lr, 'weight_decay': custom_weight_decay}, \
-                            {'params': tg_model.fc.fc1.parameters(), 'lr': 0, 'weight_decay': 0}]
-            else:
-                tg_params = tg_model.parameters()
 
+            tg_params = tg_model.parameters()
+                
             ###############################
             tg_model = tg_model.to(device)
-            if iteration > start_iter:
-                ref_model = ref_model.to(device)
             tg_optimizer = optim.SGD(tg_params, lr=base_lr, momentum=custom_momentum, weight_decay=custom_weight_decay)
             tg_lr_scheduler =  ReduceLROnPlateau(tg_optimizer, factor=lr_factor, patience=lr_patience, threshold=lr_threshold)
             #############################
-
+            
             tg_model = train_model(trainloader, testloader, tg_model,ref_model,ckp_name,main_ckp_prefix,
-                                   tg_optimizer,tg_lr_scheduler,
-                                   args,iteration_total,iteration,start_iter,cur_lamda,device,mode = "original",train_mode = args.mode)
+                        tg_optimizer,tg_lr_scheduler,
+                        args,iteration_total,iteration,start_iter,cur_lamda,device,mode = "original",train_mode = args.mode)
 
-
-        ### training verifier
+                        
+        ### training verifier               
         if args.verifier:
             print("making verifier dataloader")
             trainset_verifier.data = X_train_cumul
@@ -699,9 +598,9 @@ for iteration_total in range(args.nb_runs):
                     sampler_list.append(trainset_verifier.view_label_weights[yi])
                 train_sampler = torch.utils.data.sampler.WeightedRandomSampler(sampler_list, len(sampler_list))
                 trainloader = torch.utils.data.DataLoader(trainset_verifier, batch_size=train_batch_size,
-                                                          shuffle=False, num_workers=2,sampler=train_sampler)
+                                shuffle=False, num_workers=2,sampler=train_sampler)
             trainloader_verifier = torch.utils.data.DataLoader(trainset_verifier, batch_size=train_batch_size,
-                                                               shuffle=True, num_workers=2)
+                shuffle=True, num_workers=2)
             verifier_ckp_name = './sweep_checkpoint/{}_{}_run_{}_iteration_{}_model.pth'.format(verifier_ckp_prefix,'verifier', iteration_total, iteration)
             print("chechpoint verifier address", verifier_ckp_name)
 
@@ -721,19 +620,19 @@ for iteration_total in range(args.nb_runs):
                 train_model(trainloader_verifier, testloader, verifier_model,None,verifier_ckp_name,verifier_ckp_prefix,
                             verifier_optimizer,verifier_lr_scheduler,
                             args,iteration_total,iteration,start_iter,cur_lamda,device,mode = "verifier",train_mode = args.mode)
-
-
+                    
+                    
         ### Exemplars
         if args.fix_budget:
             print("fixing budget")
             nb_protos_cl = int(np.ceil(args.nb_protos*100./args.nb_cl/(iteration+1)))
         else:
             nb_protos_cl = args.nb_protos
-
+            
         nn.Sequential(*list(tg_model.children())[:-1])
         tg_feature_model = nn.Sequential(*list(tg_model.children())[:-1])
         num_features = tg_model.fc.in_features
-
+        
         # Herding
         if args.sampler_type == 'paper1' and args.add_sampler:
             print('Updating exemplar set...')
@@ -742,8 +641,8 @@ for iteration_total in range(args.nb_runs):
                 evalset.data = prototypes[iter_dico]
                 evalset.targets = np.zeros(len(evalset.data)) #zero labels
                 evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
-                                                         shuffle=False, num_workers=2)
-                num_samples = len(evalset.data)
+                    shuffle=False, num_workers=2)
+                num_samples = len(evalset.data)          
                 mapped_prototypes = compute_features(tg_feature_model, evalloader, num_samples, num_features,device)
                 D = mapped_prototypes.T
                 D = D/np.linalg.norm(D,axis=0)
@@ -764,7 +663,7 @@ for iteration_total in range(args.nb_runs):
                         alpha_dr_herding[index1,ind_max,index2] = 1+iter_herding
                         iter_herding += 1
                     w_t = w_t+mu-D[:,ind_max]
-        ########################################################################################################################################################################################################################################################################################################
+########################################################################################################################################################################################################################################################################################################
 
         # Prepare the protoset
         X_protoset_cumuls = []
@@ -772,7 +671,7 @@ for iteration_total in range(args.nb_runs):
         if args.sampler_type == 'paper2' and args.add_data:
             if iteration >= start_iter:
                 print("generation")
-                main_ckp_prefix = main_ckp_prefix + '_bsg_' + str(args.bs) + '_lrg_' + str(args.generation_lr) + '_rfg_' + str(args.r_feature) + '_tv_l2g_' + str(args.tv_l2) + '_l2g_' + str(args.l2) + '_beta2_' +str(args.beta_2) + '_alpha3_'+str(args.alpha_3) + '_dist_' + str(args.dist)
+                main_ckp_prefix = main_ckp_prefix + '_bsg_' + str(args.bs) + '_lrg_' + str(args.generation_lr) + '_rfg_' + str(args.r_feature) + '_tv_l2g_' + str(args.tv_l2) + '_l2g_' + str(args.l2) + '_beta2_' +str(args.beta_2)
 
                 wandb.run.name = '{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
                 wandb.run.save()
@@ -781,18 +680,17 @@ for iteration_total in range(args.nb_runs):
                     generation_path = "generation_more_optimized"
                 else:
                     generation_path = "generations"
-                print(generation_path)
                 # final images will be stored here:
                 adi_data_path = './sweep_checkpoint/final_images/{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
-
+                
                 # temporal data and generations will be stored here
                 exp_name = './sweep_checkpoint/{}/{}_run_{}_iteration_{}_model.pth'.format(generation_path,main_ckp_prefix, iteration_total, iteration)
 
 
-                generated_batch_add = './sweep_checkpoint/{}/{}_gerated_data_run_{}_iteration_{}.pkl'.format(generation_path,main_ckp_prefix, iteration_total, iteration)
-                generated_target_add = './sweep_checkpoint/{}/{}_gerated_label_run_{}_iteration_{}.pkl'.format(generation_path,main_ckp_prefix, iteration_total, iteration)
+                generated_batch_add = './sweep_checkpoint/{}/1_{}_gerated_data_run_{}_iteration_{}.pkl'.format(generation_path,main_ckp_prefix, iteration_total, iteration)
+                generated_target_add = './sweep_checkpoint/{}/1_{}_gerated_label_run_{}_iteration_{}.pkl'.format(generation_path,main_ckp_prefix, iteration_total, iteration)
 
-                if args.add_sampler:
+                if args.add_sampler: 
                     args.iterations = 2000
                     args.start_noise = True
                     # args.detach_student = False
@@ -850,13 +748,13 @@ for iteration_total in range(args.nb_runs):
                                                              target_classes_min = 0,
                                                              target_classes_max = max(map_Y_train),
                                                              mean_image_dir =args.save_samples_dir,
-                                                             order_mine = order_mine)
+                                                            order_mine = order_mine)
 
 
 
 
                     print("number of generated batch loops",int((len(trainset.targets)/10)/bs))
-
+                    
                     if args.generate_more:
                         if args.nb_generation == 0:
                             number_of_batches = int((len(trainset.targets)/10)/bs)
@@ -864,7 +762,6 @@ for iteration_total in range(args.nb_runs):
                             number_of_batches = args.nb_generation
                     else:
                         number_of_batches = 1
-                    print("number of generated batch loops",number_of_batches)
                     for j in range(number_of_batches):
                         generated , targets = DeepInversionEngine.generate_batch(net_student=None,use_mean_initialization = args.use_mean_initialization, beta_2 = args.beta_2)
 
@@ -881,13 +778,13 @@ for iteration_total in range(args.nb_runs):
                             X_protoset_cumuls = pickle.load(f)
                         with open(generated_target_add,'rb') as f:
                             Y_protoset_cumuls = pickle.load(f)
-                        print(len(X_protoset_cumuls))
+                        trainset = fake_Heart(generated_batch_add, generated_target_add , transform=None, used_labels = None,order= None)
                     else:
                         print("no new generated data for this phase")
-
-
-
-        # ########################################################################################################################################################################################################################################################################################################
+        
+        
+        
+# ########################################################################################################################################################################################################################################################################################################        
 
         # Class means for iCaRL and NCM + Storing the selected exemplars in the protoset
         if args.sampler_type == 'paper1' and args.add_sampler:
@@ -901,7 +798,7 @@ for iteration_total in range(args.nb_runs):
                     evalset.data = prototypes[iteration2*args.nb_cl+iter_dico]
                     evalset.targets = np.zeros(len(evalset.data)) #zero labels
                     evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
-                                                             shuffle=False, num_workers=2)
+                        shuffle=False, num_workers=2)
                     num_samples = len(evalset.data)
                     mapped_prototypes = compute_features(tg_feature_model, evalloader, num_samples, num_features,device)
                     D = mapped_prototypes.T
@@ -910,7 +807,7 @@ for iteration_total in range(args.nb_runs):
                     evalset.data = prototypes[iteration2*args.nb_cl+iter_dico]
                     evalset.flipped_version = True
                     evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
-                                                             shuffle=False, num_workers=2)
+                        shuffle=False, num_workers=2)
                     mapped_prototypes2 = compute_features(tg_feature_model, evalloader, num_samples, num_features,device)
                     D2 = mapped_prototypes2.T
                     D2 = D2/np.linalg.norm(D2,axis=0)
@@ -933,38 +830,39 @@ for iteration_total in range(args.nb_runs):
                     class_means[:,current_cl[iter_dico],1] /= np.linalg.norm(class_means[:,current_cl[iter_dico],1])
 
             torch.save(class_means, \
-                       './sweep_checkpoint/{}_run_{}_iteration_{}_class_means.pth'.format(main_ckp_prefix,iteration_total, iteration))
+                './sweep_checkpoint/{}_run_{}_iteration_{}_class_means.pth'.format(main_ckp_prefix,iteration_total, iteration))
 
             current_means = class_means[:, order[range(0,(iteration+1)*args.nb_cl)]]
         ##############################################################
         # Calculate validation error of model on the first nb_cl classes:
         if args.validate:
-            map_Y_valid_ori = np.array([order_list.index(i) for i in Y_valid_ori])
-            print('Computing accuracy on the original batch of classes...')
-            evalset.data = X_valid_ori
-            evalset.targets = map_Y_valid_ori
-            evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
-                                                     shuffle=False, num_workers=2)
-            ori_acc = compute_accuracy(tg_model, tg_feature_model, None, evalloader,device=device)
-            top1_acc_list_ori[iteration, :, iteration_total] = np.array(ori_acc).T
-            ##############################################################
-            # Calculate validation error of model on the cumul of classes:
-            map_Y_valid_cumul = np.array([order_list.index(i) for i in Y_valid_cumul])
-            print('Computing cumulative accuracy...')
-            evalset.data = X_valid_cumul
-            evalset.targets = map_Y_valid_cumul
-            evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
-                                                     shuffle=False, num_workers=2)
-            cumul_acc = compute_accuracy(tg_model, tg_feature_model, None, evalloader,device=device)
-            top1_acc_list_cumul[iteration, :, iteration_total] = np.array(cumul_acc).T
-            ##############################################################
-            # Calculate confusion matrix
-            print('Computing confusion matrix...')
-            cm = compute_confusion_matrix(tg_model, tg_feature_model, None, evalloader,device=device)
-            cm_name = './sweep_checkpoint/{}_run_{}_iteration_{}_confusion_matrix.pth'.format(main_ckp_prefix,iteration_total, iteration)
-            with open(cm_name, 'wb') as f:
-                pickle.dump(cm, f) #for reading with Python 2
-            ##############################################################
+            if iteration > start_iter:
+                map_Y_valid_ori = np.array([order_list.index(i) for i in Y_valid_ori])
+                print('Computing accuracy on the original batch of classes...')
+                evalset.data = X_valid_ori
+                evalset.targets = map_Y_valid_ori
+                evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
+                        shuffle=False, num_workers=2)
+                ori_acc = compute_accuracy(tg_model, tg_feature_model, None, evalloader,device=device)
+                top1_acc_list_ori[iteration, :, iteration_total] = np.array(ori_acc).T
+                ##############################################################
+                # Calculate validation error of model on the cumul of classes:
+                map_Y_valid_cumul = np.array([order_list.index(i) for i in Y_valid_cumul])
+                print('Computing cumulative accuracy...')
+                evalset.data = X_valid_cumul
+                evalset.targets = map_Y_valid_cumul
+                evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
+                        shuffle=False, num_workers=2)        
+                cumul_acc = compute_accuracy(tg_model, tg_feature_model, None, evalloader,device=device)
+                top1_acc_list_cumul[iteration, :, iteration_total] = np.array(cumul_acc).T
+                ##############################################################
+                # Calculate confusion matrix
+                print('Computing confusion matrix...')
+                cm = compute_confusion_matrix(tg_model, tg_feature_model, None, evalloader,device=device)
+                cm_name = './sweep_checkpoint/{}_run_{}_iteration_{}_confusion_matrix.pth'.format(main_ckp_prefix,iteration_total, iteration)
+                with open(cm_name, 'wb') as f:
+                    pickle.dump(cm, f) #for reading with Python 2
+            ##############################################################   
 
     # Final save of the data
     # torch.save(top1_acc_list_ori, \

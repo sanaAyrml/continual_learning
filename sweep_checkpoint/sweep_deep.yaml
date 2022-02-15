@@ -1,4 +1,4 @@
-program: Medical_class_incremental_cosine_Deepinversion.py
+program: 1_Medical_class_incremental_cosine_Deepinversion.py
 method: grid
 metric:
     goal: minimize
@@ -9,7 +9,7 @@ parameters:
     batch_size_1: 
         values: [40,64]
     directory:
-        value: sweep_phase1_deep_training
+        value: sweep_phase1_deep_training_newww
     ckp_prefix:
         value: class_incremental_MR_LFAD_cosine
     random_seed:
@@ -62,4 +62,9 @@ parameters:
         value: True
     do_flip:
         value: True
-    
+    sampler_type:
+        value: paper2
+    mode:
+        value: paper_2
+    cuda_number:
+        value: 0

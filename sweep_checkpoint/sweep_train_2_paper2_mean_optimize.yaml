@@ -1,10 +1,12 @@
-program: 1_Medical_class_incremental_cosine_Deepinversion.py
-method: grid
+program: 2_Medical_class_incremental_cosine_Deepinversion.py
+method: bayes
 metric:
-    goal: minimize
-    name: total loss
+    goal: maximize
+    name: Best Acc
 parameters:
     lr:
+        value: 0.01
+    lr_verifier:
         value: 0.01
     batch_size_1: 
         value: 40
@@ -25,32 +27,30 @@ parameters:
     num_classes: 
         value: 14
     epochs: 
-        value: 150
+        value: 70
     rs_ratio: 
-        value: 0.5
-    dist: 
-        value: 0.5 
+        value: 0.66
+    dist:
+        values: [0.3,0.5,0.7,0.9] 
     K: 
         value: 1
     lw_mr: 
         value: 1
     bs: 
-        value: 40 
+        values: [20,40] 
     setting_id: 
-        value: 2 
+        value: 1 
     generation_lr: 
-        value: 0.05
+        values: [0.05,0.25,0.005]
     adi_scale: 
         value: 0.0 
     tv_l2: 
-        value: 0.01 
+        values: [0.001,0.01,0.1] 
     r_feature: 
-        value: 0.002
+        values: [0.2,0.02,0.002]
     l2: 
-        value: 0.01
+        values: [0.1,0.001,0.01]
     cosine_normalization:
-        value: True
-    store_best_images:
         value: True
     small_model:
         value: True
@@ -66,21 +66,39 @@ parameters:
         value: True
     resume:
         value: True
-    add_sampler:
+    verifier:
         value: True
     sampler_type:
-        value: paper1
+        value: paper2
     validate:
         value: True
     mode:
-        value: paper_1
+        value: paper_2
+    add_sampler:
+        value: True
     add_data:
         value: True
+    save_samples_dir:
+        value: ./saved_Sample_3_2
+    type_of_verifier:
+        value: VGG
+    use_mean_initialization:
+        value: true
+    beta_2:
+        values: [0.9,0.09,0.009]
+    alpha_3:
+        values: [1,10,100]
+    random_label:
+        value: true
     cuda_number:
-        value: 0
+        value: 1
+    generate_more:
+        value: true
+    nb_generation:
+        value: 5
 early_terminate:
     type: hyperband
     s: 2
     eta: 3
     max_iter: 30    
-project: CVPR19_Incremental_Learning-cifar100-class-incremental
+project: sweep_in_two_level

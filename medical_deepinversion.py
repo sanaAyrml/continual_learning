@@ -80,10 +80,12 @@ class DeepInversionClass(object):
                  coefficients=dict(),
                  network_output_function=lambda x: x,
                  hook_for_display = None,
+                 hook_for_self_eval = None,
                 device= None,
                 target_classes_min=0,
                 target_classes_max=0,
-                mean_image_dir = "./saved_Sample"):
+                mean_image_dir = "./saved_Sample",
+                order_mine = None):
         '''
         :param bs: batch size per GPU for image generation
         :param use_fp16: use FP16 (or APEX AMP) for model inversion, uses less memory and is faster for GPUs with Tensor Cores
@@ -138,7 +140,7 @@ class DeepInversionClass(object):
         self.setting_id = setting_id
         self.bs = bs  # batch size
         self.use_fp16 = use_fp16
-        self.save_every = 100
+        self.save_every = 1000
         self.jitter = jitter
         self.criterion = criterion
         self.network_output_function = network_output_function
@@ -193,11 +195,17 @@ class DeepInversionClass(object):
         self.hook_for_display = None
         if hook_for_display is not None:
             self.hook_for_display = hook_for_display
+        
+        self.hook_for_self_eval = None
+        if hook_for_self_eval is not None:
+            self.hook_for_self_eval = hook_for_self_eval
             
         self.device = device
         self.target_classes_min = target_classes_min
         self.target_classes_max = target_classes_max
         self.mean_image_dir = mean_image_dir
+        
+        self.order_mine =order_mine
 
     def get_images(self, net_student=None, targets=None, use_mean_initialization = False, beta_2 = 0.9):
         print("get_images call")
@@ -230,7 +238,7 @@ class DeepInversionClass(object):
         inputs_layer = torch.randn((self.bs, 1, img_original, img_original), requires_grad=False, device=self.device,dtype=data_type)
         if use_mean_initialization:
             for t in range(len(targets)):
-                initialized_image_dir = self.mean_image_dir + "/label_"+str(targets[t].item())+"_integrated.png"
+                initialized_image_dir = self.mean_image_dir + "/label_"+str(self.order_mine[targets[t].item()])+"_integrated.png"
                 image = Image.open(initialized_image_dir)
                 image_array = torch.from_numpy(((np.array(image)/255.0)-0.122)/0.184).to(self.device)
                 # print("readed image max and min",
@@ -298,8 +306,8 @@ class DeepInversionClass(object):
                 # print("self.lr",self.lr)
             elif self.setting_id == 2:
                 #20k normal resolution the closes to the paper experiments for ResNet50
-                optimizer = optim.Adam([inputs], lr=self.lr, betas=[0.9, beta_2], eps = 1e-8)
-                do_clip = False
+                optimizer = optim.Adam([inputs], lr=self.lr, betas=[0.5, beta_2], eps = 1e-8)
+                do_clip = True
 
             if use_fp16:
                 static_loss_scale = 256
@@ -418,7 +426,11 @@ class DeepInversionClass(object):
                             acc = self.hook_for_display(inputs, targets)
                         else: 
                             acc = 0
-                            
+                        
+                        if self.hook_for_self_eval is not None:
+                            acc_self = self.hook_for_self_eval(inputs, targets)
+                        else: 
+                            acc_self = 0
                         self.log_file.write('{},{},{},{},{},{},{},{},{}\n'.format(
                             iteration+self.base_iteration,
                             loss.item(), 
@@ -433,10 +445,12 @@ class DeepInversionClass(object):
 
                         metrics = {"total loss": loss.item(),
                                    "loss batch normalization": self.bn_reg_scale * loss_r_feature.item(),
+                                   "batch normalization value": loss_r_feature.item(),
                                    "loss variation_l2": self.var_scale_l2 * loss_var_l2.item(),
                                    "loss l2 on images": self.l2_scale * loss_l2.item(),
                                    "Cross Entropy": self.main_loss_multiplier*ce,
                                    "Verifier Acc": acc,
+                                   "Self Acc": acc_self,
                                    "learning rate": lr}
                         wandb.log(metrics)
 
@@ -479,12 +493,26 @@ class DeepInversionClass(object):
                                                                                            local_rank))
 
 
+
         if self.store_best_images:
             vutils.save_image(best_inputs,
                                           '{}/output_{:05d}.png'.format(self.final_data_path,
                                                                                self.base_iteration),
                                           normalize=True, scale_each=True, nrow=int(10))
-            
+            plt.style.use('dark_background')
+            image = plt.imread('{}/output_{:05d}.png'.format(self.final_data_path,
+                                                                                      (self.base_iteration),
+                                                                                      local_rank)) 
+            fig, ax = plt.subplots()
+            ax.imshow(image)
+            ax.axis('off')
+            fig.set_size_inches(10*3 , int((len(inputs_layer)+1)/10)*3+2)
+            plt.title(str(targets), fontweight ="bold")
+            plt.savefig('{}/output_{:05d}_gpu_{}.png'.format(self.final_data_path,
+                                                                                      (self.base_iteration) // save_every,
+                                                                                      local_rank))
+
+
 
         # to reduce memory consumption by states of the optimizer we deallocate memory
         optimizer.state = collections.defaultdict(dict)

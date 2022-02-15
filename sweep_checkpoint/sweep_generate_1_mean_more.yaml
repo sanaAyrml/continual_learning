@@ -6,6 +6,8 @@ metric:
 parameters:
     lr:
         value: 0.01
+    lr_verifier:
+        value: 0.01
     batch_size_1: 
         value: 40
     directory:
@@ -87,7 +89,11 @@ parameters:
     random_label:
         value: true
     cuda_number:
-        value: 1
+        value: 0
     generate_more:
+        value: true
+    nb_generation:
+        value: 21
+    store_best_images:
         value: true
 project: CVPR19_Incremental_Learning-cifar100-class-incremental

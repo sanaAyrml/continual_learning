@@ -253,6 +253,13 @@ parser.add_argument('--alpha_3', default=1 , type=int,
                     help='number of batch to train')
 
 
+parser.add_argument('--CL', default=0 , type=int,
+                    help='if none zero enable contrastive learning')
+
+parser.add_argument('--ro', default=0.9 , type=float,
+                    help='ro for updating centroids')
+
+
 
 
 
@@ -291,7 +298,7 @@ lr_patience            = 5
 lr_threshold           = 0.0001
 custom_weight_decay    = 5e-4           # Weight Decay
 custom_momentum        = 0.9            # Momentum
-
+args.epochs = 50
 
 if not os.path.exists('sweep_checkpoint/'+args.directory):
     os.makedirs('sweep_checkpoint/'+args.directory)
@@ -422,22 +429,23 @@ for iteration_total in range(args.nb_runs):
                                                                                              args.lr_verifier,
                                                                                              args.batch_size_1)
         else:
-            main_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode+"_optimized",args.ckp_prefix,
+            main_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode+"_CL",args.ckp_prefix,
                                                                                         args.nb_cl_fg,
                                                                                         args.nb_cl,
                                                                                         args.lr,
                                                                                         args.batch_size_1)
-            verifier_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode+"_optimized",args.ckp_prefix_verifier,
+            verifier_ckp_prefix        = '{}/{}/{}_nb_cl_fg_{}_nb_cl_{}_lr_{}_bs_{}'.format(args.directory,args.mode,args.ckp_prefix_verifier,
                                                                                             args.nb_cl_fg,
                                                                                             args.nb_cl,
                                                                                             args.lr_verifier,
                                                                                             args.batch_size_1)
 
 
+        #TODO
         wandb.run.name = '{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
         wandb.run.save()
 
-        if args.verifier:
+        if args.verifier and iteration == start_iter:
             print("making verifier model")
             if args.small_model:
                 if args.type_of_verifier == 'Resnet' :
@@ -646,6 +654,10 @@ for iteration_total in range(args.nb_runs):
         testset.targets = map_Y_valid_cumul
         testloader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
                                                  shuffle=False, num_workers=2)
+        evalset.data = X_valid_cumul
+        evalset.targets = map_Y_valid_cumul
+        evalloader = torch.utils.data.DataLoader(evalset, batch_size=test_batch_size,
+                                                 shuffle=True, num_workers=2)
 
         print('Max and Min of train labels: {}, {}'.format(min(map_Y_train), max(map_Y_train)))
         print('Max and Min of valid labels: {}, {}'.format(min(map_Y_valid_cumul), max(map_Y_valid_cumul)))
@@ -653,6 +665,12 @@ for iteration_total in range(args.nb_runs):
         ##############################################################
 
 
+        #TODO
+        if iteration > start_iter:
+            main_ckp_prefix = main_ckp_prefix + '_bsg_' + str(args.bs) + '_lrg_' + str(args.generation_lr) + '_rfg_' + str(args.r_feature) + '_tv_l2g_' + str(args.tv_l2) + '_l2g_' + str(args.l2) + '_beta2_' +str(args.beta_2)  + '_alpha3_'+str(args.alpha_3) + '_dist_' + str(args.dist)
+
+            wandb.run.name = '{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
+            wandb.run.save()
         ckp_name = './sweep_checkpoint/{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
         print('check point address of original model', ckp_name)
 
@@ -685,42 +703,43 @@ for iteration_total in range(args.nb_runs):
 
             tg_model = train_model(trainloader, testloader, tg_model,ref_model,ckp_name,main_ckp_prefix,
                                    tg_optimizer,tg_lr_scheduler,
-                                   args,iteration_total,iteration,start_iter,cur_lamda,device,mode = "original",train_mode = args.mode)
+                                   args,iteration_total,iteration,start_iter,cur_lamda,device,mode = "original",train_mode = args.mode,evalloader = evalloader)
 
 
         ### training verifier
         if args.verifier:
-            print("making verifier dataloader")
-            trainset_verifier.data = X_train_cumul
-            trainset_verifier.targets = map_Y_train_cumul
-            if args.Plax:
-                sampler_list = []
-                for yi in trainset_verifier.targets:
-                    sampler_list.append(trainset_verifier.view_label_weights[yi])
-                train_sampler = torch.utils.data.sampler.WeightedRandomSampler(sampler_list, len(sampler_list))
-                trainloader = torch.utils.data.DataLoader(trainset_verifier, batch_size=train_batch_size,
-                                                          shuffle=False, num_workers=2,sampler=train_sampler)
-            trainloader_verifier = torch.utils.data.DataLoader(trainset_verifier, batch_size=train_batch_size,
-                                                               shuffle=True, num_workers=2)
-            verifier_ckp_name = './sweep_checkpoint/{}_{}_run_{}_iteration_{}_model.pth'.format(verifier_ckp_prefix,'verifier', iteration_total, iteration)
-            print("chechpoint verifier address", verifier_ckp_name)
+            if iteration == start_iter:
+                print("making verifier dataloader")
+                trainset_verifier.data = X_train_cumul
+                trainset_verifier.targets = map_Y_train_cumul
+                if args.Plax:
+                    sampler_list = []
+                    for yi in trainset_verifier.targets:
+                        sampler_list.append(trainset_verifier.view_label_weights[yi])
+                    train_sampler = torch.utils.data.sampler.WeightedRandomSampler(sampler_list, len(sampler_list))
+                    trainloader = torch.utils.data.DataLoader(trainset_verifier, batch_size=train_batch_size,
+                                                              shuffle=False, num_workers=2,sampler=train_sampler)
+                trainloader_verifier = torch.utils.data.DataLoader(trainset_verifier, batch_size=train_batch_size,
+                                                                   shuffle=True, num_workers=2)
+                verifier_ckp_name = './sweep_checkpoint/{}_{}_run_{}_iteration_{}_model.pth'.format(verifier_ckp_prefix,'verifier', iteration_total, iteration)
+                print("chechpoint verifier address", verifier_ckp_name)
 
-            if args.resume and os.path.exists(verifier_ckp_name):
-                print("###############################")
-                print("Loading verifier models weights from checkpoint")
-                verifier_model.load_state_dict(torch.load(verifier_ckp_name)['model_state_dict'])
-                print("###############################")
+                if args.resume and os.path.exists(verifier_ckp_name):
+                    print("###############################")
+                    print("Loading verifier models weights from checkpoint")
+                    verifier_model.load_state_dict(torch.load(verifier_ckp_name)['model_state_dict'])
+                    print("###############################")
 
-            else:
-                verifier_params = verifier_model.parameters()
-                ###############################
-                verifier_model = verifier_model.to(device)
-                verifier_optimizer = optim.SGD(verifier_params, lr=args.lr_verifier, momentum=custom_momentum, weight_decay=custom_weight_decay)
-                verifier_lr_scheduler =  ReduceLROnPlateau(verifier_optimizer, factor=lr_factor, patience=lr_patience, threshold=lr_threshold)
-                #############################
-                train_model(trainloader_verifier, testloader, verifier_model,None,verifier_ckp_name,verifier_ckp_prefix,
-                            verifier_optimizer,verifier_lr_scheduler,
-                            args,iteration_total,iteration,start_iter,cur_lamda,device,mode = "verifier",train_mode = args.mode)
+                else:
+                    verifier_params = verifier_model.parameters()
+                    ###############################
+                    verifier_model = verifier_model.to(device)
+                    verifier_optimizer = optim.SGD(verifier_params, lr=args.lr_verifier, momentum=custom_momentum, weight_decay=custom_weight_decay)
+                    verifier_lr_scheduler =  ReduceLROnPlateau(verifier_optimizer, factor=lr_factor, patience=lr_patience, threshold=lr_threshold)
+                    #############################
+                    train_model(trainloader_verifier, testloader, verifier_model,None,verifier_ckp_name,verifier_ckp_prefix,
+                                verifier_optimizer,verifier_lr_scheduler,
+                                args,iteration_total,iteration,start_iter,cur_lamda,device,mode = "verifier",train_mode = args.mode)
 
 
         ### Exemplars
@@ -770,7 +789,7 @@ for iteration_total in range(args.nb_runs):
         X_protoset_cumuls = []
         Y_protoset_cumuls = []
         if args.sampler_type == 'paper2' and args.add_data:
-            if iteration >= start_iter:
+            if iteration == start_iter:
                 print("generation")
                 main_ckp_prefix = main_ckp_prefix + '_bsg_' + str(args.bs) + '_lrg_' + str(args.generation_lr) + '_rfg_' + str(args.r_feature) + '_tv_l2g_' + str(args.tv_l2) + '_l2g_' + str(args.l2) + '_beta2_' +str(args.beta_2) + '_alpha3_'+str(args.alpha_3) + '_dist_' + str(args.dist)
 
@@ -781,7 +800,6 @@ for iteration_total in range(args.nb_runs):
                     generation_path = "generation_more_optimized"
                 else:
                     generation_path = "generations"
-                print(generation_path)
                 # final images will be stored here:
                 adi_data_path = './sweep_checkpoint/final_images/{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
 
@@ -855,7 +873,6 @@ for iteration_total in range(args.nb_runs):
 
 
 
-                    print("number of generated batch loops",int((len(trainset.targets)/10)/bs))
 
                     if args.generate_more:
                         if args.nb_generation == 0:
@@ -881,7 +898,6 @@ for iteration_total in range(args.nb_runs):
                             X_protoset_cumuls = pickle.load(f)
                         with open(generated_target_add,'rb') as f:
                             Y_protoset_cumuls = pickle.load(f)
-                        print(len(X_protoset_cumuls))
                     else:
                         print("no new generated data for this phase")
 
@@ -939,31 +955,32 @@ for iteration_total in range(args.nb_runs):
         ##############################################################
         # Calculate validation error of model on the first nb_cl classes:
         if args.validate:
-            map_Y_valid_ori = np.array([order_list.index(i) for i in Y_valid_ori])
-            print('Computing accuracy on the original batch of classes...')
-            evalset.data = X_valid_ori
-            evalset.targets = map_Y_valid_ori
-            evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
-                                                     shuffle=False, num_workers=2)
-            ori_acc = compute_accuracy(tg_model, tg_feature_model, None, evalloader,device=device)
-            top1_acc_list_ori[iteration, :, iteration_total] = np.array(ori_acc).T
-            ##############################################################
-            # Calculate validation error of model on the cumul of classes:
-            map_Y_valid_cumul = np.array([order_list.index(i) for i in Y_valid_cumul])
-            print('Computing cumulative accuracy...')
-            evalset.data = X_valid_cumul
-            evalset.targets = map_Y_valid_cumul
-            evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
-                                                     shuffle=False, num_workers=2)
-            cumul_acc = compute_accuracy(tg_model, tg_feature_model, None, evalloader,device=device)
-            top1_acc_list_cumul[iteration, :, iteration_total] = np.array(cumul_acc).T
-            ##############################################################
-            # Calculate confusion matrix
-            print('Computing confusion matrix...')
-            cm = compute_confusion_matrix(tg_model, tg_feature_model, None, evalloader,device=device)
-            cm_name = './sweep_checkpoint/{}_run_{}_iteration_{}_confusion_matrix.pth'.format(main_ckp_prefix,iteration_total, iteration)
-            with open(cm_name, 'wb') as f:
-                pickle.dump(cm, f) #for reading with Python 2
+            if iteration > start_iter:
+                map_Y_valid_ori = np.array([order_list.index(i) for i in Y_valid_ori])
+                print('Computing accuracy on the original batch of classes...')
+                evalset.data = X_valid_ori
+                evalset.targets = map_Y_valid_ori
+                evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
+                                                         shuffle=False, num_workers=2)
+                ori_acc = compute_accuracy(tg_model, tg_feature_model, None, evalloader,device=device)
+                top1_acc_list_ori[iteration, :, iteration_total] = np.array(ori_acc).T
+                ##############################################################
+                # Calculate validation error of model on the cumul of classes:
+                map_Y_valid_cumul = np.array([order_list.index(i) for i in Y_valid_cumul])
+                print('Computing cumulative accuracy...')
+                evalset.data = X_valid_cumul
+                evalset.targets = map_Y_valid_cumul
+                evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
+                                                         shuffle=False, num_workers=2)
+                cumul_acc = compute_accuracy(tg_model, tg_feature_model, None, evalloader,device=device)
+                top1_acc_list_cumul[iteration, :, iteration_total] = np.array(cumul_acc).T
+                ##############################################################
+                # Calculate confusion matrix
+                print('Computing confusion matrix...')
+                cm = compute_confusion_matrix(tg_model, tg_feature_model, None, evalloader,device=device)
+                cm_name = './sweep_checkpoint/{}_run_{}_iteration_{}_confusion_matrix.pth'.format(main_ckp_prefix,iteration_total, iteration)
+                with open(cm_name, 'wb') as f:
+                    pickle.dump(cm, f) #for reading with Python 2
             ##############################################################
 
     # Final save of the data
@@ -971,6 +988,7 @@ for iteration_total in range(args.nb_runs):
     #     './sweep_checkpoint/{}_run_{}_top1_acc_list_ori.pth'.format(main_ckp_prefix, iteration_total))
     # torch.save(top1_acc_list_cumul, \
     #     './sweep_checkpoint/{}_run_{}_top1_acc_list_cumul.pth'.format(main_ckp_prefix, iteration_total))
+
 
 
 
