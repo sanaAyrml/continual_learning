@@ -41,7 +41,7 @@ from utils_incremental.incremental_train_and_eval_MS import incremental_train_an
 from utils_incremental.incremental_train_and_eval_LF import incremental_train_and_eval_LF
 from utils_incremental.incremental_train_and_eval_MR_LF import incremental_train_and_eval_MR_LF
 from utils_incremental.incremental_train_and_eval_AMR_LF import incremental_train_and_eval_AMR_LF
-from Medical_train import train_model
+from run_handler import train_model
 
 import matplotlib.pyplot as plt
 import argparse
@@ -258,6 +258,11 @@ parser.add_argument('--CL', default=0 , type=int,
 
 parser.add_argument('--ro', default=0.9 , type=float,
                     help='ro for updating centroids')
+
+parser.add_argument('--temprature', default=5 , type=float,
+                    help='temprature for contrastive loss')
+
+
 
 
 
@@ -668,6 +673,8 @@ for iteration_total in range(args.nb_runs):
         #TODO
         if iteration > start_iter:
             main_ckp_prefix = main_ckp_prefix + '_bsg_' + str(args.bs) + '_lrg_' + str(args.generation_lr) + '_rfg_' + str(args.r_feature) + '_tv_l2g_' + str(args.tv_l2) + '_l2g_' + str(args.l2) + '_beta2_' +str(args.beta_2)  + '_alpha3_'+str(args.alpha_3) + '_dist_' + str(args.dist)
+            if args.CL == 1:
+                main_ckp_prefix = main_ckp_prefix + '_ro_'+str(args.ro)+'_temprature_'+str(args.ro)
 
             wandb.run.name = '{}_run_{}_iteration_{}_model.pth'.format(main_ckp_prefix, iteration_total, iteration)
             wandb.run.save()

@@ -41,7 +41,7 @@ from utils_incremental.incremental_train_and_eval_MS import incremental_train_an
 from utils_incremental.incremental_train_and_eval_LF import incremental_train_and_eval_LF
 from utils_incremental.incremental_train_and_eval_MR_LF import incremental_train_and_eval_MR_LF
 from utils_incremental.incremental_train_and_eval_AMR_LF import incremental_train_and_eval_AMR_LF
-from Medical_train import train_model
+from run_handler import train_model
 
 import matplotlib.pyplot as plt
 import argparse
